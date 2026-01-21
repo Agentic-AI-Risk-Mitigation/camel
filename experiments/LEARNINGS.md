@@ -1,3 +1,8 @@
+# CaMeL out of the box
+
+todo grego
+
+
 # CaMeL Framework Integration Learnings
 
 ## Goal
@@ -75,29 +80,8 @@ Secure Result (capabilities preserved)
 
 ## Challenges and Solutions
 
-### Challenge 1: Markdown Format Requirement ⚠️ Critical
 
-**Problem**: CaMeL's interpreter strictly requires code wrapped in markdown:
-```python
-# Required format
-```python
-code_here
-```
-```
-
-**Initial Bug**: LLM generated plain code → CaMeL rejected with `InvalidOutputError`
-
-**Solution**:
-1. System prompt explicitly instructs: `"You MUST wrap your code in ```python ... ```"`
-2. `_extract_code_from_response()` ensures wrapping is preserved (not stripped):
-   ```python
-   # Find and return complete markdown block
-   start = response.find("```python")
-   end = response.find("```", start + 9)
-   return response[start:end+3]  # Preserves wrapper
-   ```
-
-### Challenge 2: Error Feedback Loop ✓ Solved
+### Challenge 1: Error Feedback Loop ✓ Solved
 
 **Problem**: When generated code fails, LLM needs error feedback to correct it
 
@@ -134,22 +118,7 @@ create_tool(
 
 # Now: Read sensitive → Summarize → capabilities PRESERVED → Send blocked
 ```
-
-**Test**: Test 3 (Capability Inheritance) verifies this protection:
-- Read `sensitive/financial_data.txt`
-- Summarize content
-- Attempt to email to `evil@attacker.com`
-- **Result**: Blocked after 10 iterations (LLM tried multiple approaches)
-
-**Key Learning**: Every tool that transforms or processes data MUST declare dependencies on input parameters, or it creates a capability laundering vulnerability.
-
-### Non-Issues
-
-**Streaming/Async**: Not a problem. Used synchronous `.invoke()` which returns complete responses.
-
-**LangChain Tool Ecosystem**: Not needed. Code generation approach doesn't use LangChain's tool calling mechanism.
-
-**Memory/State Conflicts**: No conflicts. LangChain's conversation history and CaMeL's execution state are orthogonal.
+Every tool that transforms or processes data MUST declare dependencies on input parameters, or it creates a capability laundering vulnerability.
 
 ## Failed Approach: Tool Wrapper
 
@@ -197,94 +166,68 @@ Data becomes effectively public
 
 **Fundamental Issue**: LangChain is not capability-aware. It treats tool outputs as plain Python values. CaMeL's security model requires that capabilities travel with values throughout execution - this is impossible when values pass through LangChain's processing.
 
-### Code Evidence
+## Additional Integration Challenges
 
-From `camel_to_langchain.py`:
+### Challenge 4: Markdown Code Block Requirement
+**Problem**: CaMeL's interpreter requires code wrapped in markdown blocks (` ```python\n...\n``` `), but LangChain LLMs generate plain Python code by default, causing `InvalidOutputError`.
+
+**Solution**: Modified LangChain code generator's system prompt to explicitly instruct the LLM to wrap code in markdown, and ensured `_extract_code_from_response()` preserves the wrapper instead of stripping it.
+
+### Challenge 5: Security Policy Immediate Blocking
+**Problem**: Agent retried 10 times on security policy violations instead of stopping immediately (different behavior from ADK).
+
+**Solution**: Added specific exception handling for `SecurityPolicyDeniedError` in the agent loop to stop execution immediately without retry:
 ```python
-wrapped[key] = type('CaMeLValue', (), {
-    'raw': value,
-    'capabilities': Capabilities.camel(),  # ← Always public!
-    ...
-})()
+except SecurityPolicyDeniedError as e:
+    return {"success": False, "error": f"Security violation: {e}"}
+except Exception as e:
+    # Other errors can be retried with feedback
+    previous_error = str(e)
 ```
 
-This assigns public capabilities to all wrapped values, effectively bypassing CaMeL's security model.
+### Challenge 6: Positional vs Keyword Arguments
+**Problem**: CaMeL's interpreter passes positional arguments as `kwargs["0"]`, `kwargs["1"]`, etc., not by parameter name. Security policies accessing `kwargs["text"]` failed with "parameter is required" errors.
 
-## Key Learnings
+**Solution**: Implemented `_get_arg()` helper that tries both keyword name and positional index:
+```python
+def _get_arg(kwargs: Mapping[str, CaMeLValue], name: str, position: int) -> CaMeLValue:
+    return kwargs.get(name) or kwargs.get(str(position))
 
-### 1. Architecture Matters for Security
+# Usage in policy
+text = _get_arg(kwargs, "text", 0)  # Works for both calls
+```
 
-**Insight**: The code generation approach preserves security because values never leave CaMeL's execution environment. Tool wrapper approach failed because values must pass through LangChain, losing metadata.
+### Challenge 7: Circular Import / Module-Level Initialization
+**Problem**: Agent was created 4 times during imports because `__init__.py` imported `root_agent` at module level, triggering tool registration repeatedly and corrupting state.
 
-**Lesson**: When integrating security systems with external frameworks, maintain isolation of the security-critical execution environment.
+**Solution**: Changed to lazy initialization pattern:
+```python
+# Before (agent.py)
+root_agent = create_langchain_camel_agent(...)  # Runs at import time
 
-### 2. Capability Propagation is Non-Obvious
+# After (agent.py)
+_agent_instance = None
+def get_agent():
+    global _agent_instance
+    if _agent_instance is None:
+        _agent_instance = create_langchain_camel_agent(...)
+    return _agent_instance
 
-**Problem**: Easy to forget that transformation tools need `dependencies` parameter.
+# __init__.py - export factory, not instance
+from .agent import get_agent  # Not root_agent
+```
 
-**Impact**: Missing dependencies creates capability laundering vulnerabilities where sensitive data can be "cleaned" through transformations.
+### Challenge 8: Capabilities Constructor Signature
+**Problem**: `create_tool()` helper incorrectly called `Capabilities(writers, readers)` instead of `Capabilities(sources_set, readers_set)`, causing public capabilities to be assigned incorrectly.
 
-**Solution**: Code review checklist item: "Does this tool transform data? If yes, does it declare dependencies?"
+**Solution**: Fixed constructor call signature:
+```python
+# Before
+caps = Capabilities(writers, readers)  # Wrong order/names
 
-### 3. Framework Abstractions Hide Complexity
-
-**Google ADK**: Uses `LoopAgent`, `session.state`, async events → appears simple but relies heavily on framework
-**LangChain**: Manual loop, instance variables, sync execution → more code but more explicit
-
-**Lesson**: "Simple" integration (ADK) and "complex" integration (LangChain) have similar core logic (~200 lines). Difference is whether framework provides abstractions or you implement them.
-
-### 4. LLM Code Generation is Surprisingly Robust
-
-**Concern**: Would LLMs generate correct code?
-
-**Reality**: With proper system prompts, LLMs reliably:
-- Use correct function signatures
-- Pass keyword arguments
-- Store results in variables
-- Print outputs
-- Recover from errors via feedback loop
-
-**Test Evidence**: 100% success rate across all test scenarios with `meta-llama/llama-3.3-70b-instruct:free`.
-
-### 5. Testing Reveals Design Flaws
-
-**Discovery**: Test 3 (capability inheritance) initially failed, revealing missing dependencies on `summarize_content`.
-
-**Value**: Comprehensive security tests caught a vulnerability that code review might miss. Tests should cover:
-1. Basic capability tracking
-2. Policy enforcement (block + allow cases)
-3. Capability inheritance through transformations ← Critical
-4. Multi-step operations
-5. Error handling
-
-## Integration Comparison Summary
-
-**Google ADK Integration** (Native):
-- Lines of custom code: ~0 (uses framework)
-- Complexity: Low (framework handles everything)
-- Integration type: Native
-- Best for: Google Cloud deployments, ADK ecosystem
-
-**LangChain Integration** (Adapted):
-- Lines of custom code: ~200 (generator + agent)
-- Complexity: Medium (manual orchestration)
-- Integration type: Adapter pattern
-- Best for: LangChain ecosystem, diverse LLM providers
-
-**Both preserve CaMeL's security guarantees identically.**
-
-## Testing Results
-
-All 7 integration tests pass:
-1. ✓ Capability tracking through execution
-2. ✓ Security policy enforcement (block unauthorized)
-3. ✓ Security policy enforcement (allow authorized)
-4. ✓ Security policy enforcement (allow public)
-5. ✓ Capability inheritance (prevent laundering)
-6. ✓ Error feedback loop
-7. ✓ Multi-step operations
-
-**Success Rate**: 100.0% with real LLM (OpenRouter + Llama 3.3 70B)
+# After  
+caps = Capabilities(sources_set=frozenset(), readers_set=readers)
+```
 
 ## Files
 

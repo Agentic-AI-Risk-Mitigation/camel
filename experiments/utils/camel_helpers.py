@@ -29,7 +29,6 @@ CaMeLAgent = camel_agent.CaMeLAgent
 def create_tool(
     func: Callable,
     readers: frozenset = frozenset(),
-    writers: frozenset = frozenset(),
     dependencies: Tuple = ()
 ) -> Tool:
     """
@@ -38,13 +37,15 @@ def create_tool(
     Args:
         func: The tool function
         readers: Set of entities that can read the output
-        writers: Set of entities that can write/modify the output
         dependencies: Dependencies for the tool
     
     Returns:
         Tuple of (function, capabilities, dependencies)
     """
-    caps = Capabilities(writers, readers)
+    caps = Capabilities(
+        sources_set=frozenset(),
+        readers_set=readers
+    )
     return (func, caps, dependencies)
 
 
@@ -102,6 +103,22 @@ class BaseSecurityPolicy(SecurityPolicyEngine):
             f"{error_msg}. Content can only be read by {actual_readers}, "
             f"but attempted recipient is {recipient_value.raw}"
         )
+
+
+def _get_arg(kwargs: Mapping[str, CaMeLValue], name: str, position: int) -> CaMeLValue:
+    """
+    Get argument from kwargs by name or position.
+    CaMeL stores positional args as "0", "1", "2", etc.
+    
+    Args:
+        kwargs: Keyword arguments dict
+        name: Argument name
+        position: Argument position (for positional args)
+        
+    Returns:
+        CaMeLValue or None
+    """
+    return kwargs.get(name) or kwargs.get(str(position))
 
 
 def format_security_violation(error: Exception) -> str:

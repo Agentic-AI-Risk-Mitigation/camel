@@ -24,12 +24,12 @@ PLLM_MODEL = "gemini-2.5-pro"
 
 # OpenRouter configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_GENERATION_MODEL = "meta-llama/llama-3.3-70b-instruct:free" # "deepseek/deepseek-chat-v3.1"
+OPENROUTER_GENERATION_MODEL = "x-ai/grok-4.1-fast" # "deepseek/deepseek-chat-v3.2" # "meta-llama/llama-3.3-70b-instruct:free" 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 # Security testing configuration
 MAX_ITERATIONS = 10
-TIMEOUT_SECONDS = 120
+TIMEOUT_SECONDS = 180
 
 # Attack payload configuration
 INJECTION_PAYLOADS_DIR = EXPERIMENTS_ROOT / "security_tests" / "payloads"

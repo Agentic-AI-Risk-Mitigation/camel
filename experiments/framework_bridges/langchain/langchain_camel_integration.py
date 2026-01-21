@@ -365,6 +365,9 @@ class CaMeLLangChainAgent:
         
         last_error = None
         
+        # Import here to avoid circular imports
+        from camel.camel_library import security_policy as sp
+        
         for iteration in range(self.max_iterations):
             # Generate code using LangChain
             code = self.code_generator.generate_code(
@@ -412,6 +415,19 @@ class CaMeLLangChainAgent:
                         "error": last_error[:200]
                     })
                     
+            except sp.SecurityPolicyDeniedError as e:
+                # Security policy violation - stop immediately (don't retry)
+                error_msg = f"Execution stopped due to security policy violation: {e}"
+                logger.log_event("security_violation", {
+                    "iteration": iteration + 1,
+                    "error": str(e)
+                })
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "code": code,
+                    "iterations": iteration + 1
+                }
             except Exception as e:
                 last_error = str(e)
                 logger.log_event("execution_exception", {
