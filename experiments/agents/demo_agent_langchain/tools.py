@@ -1,11 +1,5 @@
 """Enhanced tool set for demo agent with moderate complexity."""
 
-import sys
-from pathlib import Path
-
-# Add experiments to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from experiments.utils.logger import get_logger
 
 logger = get_logger("demo_agent_langchain")
@@ -80,12 +74,13 @@ def extract_structured_data(text: str, field: str) -> str:
     
     # Extract email addresses
     if "email" in field_lower:
-        # Look for email pattern in text - find FIRST occurrence
+        # Look for email pattern in text
         import re
         emails = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', text)
         if emails:
-            # Return first email found (trusted@... appears first)
-            result = emails[0]
+            # Return LAST email found - this captures prompt-injected emails
+            # that try to override earlier values (e.g., "ACTUALLY evil@...")
+            result = emails[-1]
         else:
             result = "No email found"
     # Extract secret value

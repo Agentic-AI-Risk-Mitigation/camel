@@ -1,12 +1,6 @@
 """Helper utilities for working with CaMeL components."""
 
-import sys
-from pathlib import Path
 from typing import Callable, Tuple, Any, Mapping
-
-# Add camel to path for imports
-CAMEL_ROOT = Path(__file__).parent.parent.parent / "camel"
-sys.path.insert(0, str(CAMEL_ROOT))
 
 from camel.camel_agent import camel_agent
 from camel.camel_library import security_policy

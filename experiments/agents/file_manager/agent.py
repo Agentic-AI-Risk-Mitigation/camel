@@ -1,11 +1,5 @@
 """File system manager CaMeL agent."""
 
-import sys
-from pathlib import Path
-
-# Add experiments to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from experiments.utils import (
     CaMeLAgent,
     DependenciesPropagationMode,
@@ -38,8 +32,7 @@ external_tools = [
             TEST_USERS["trusted_user"],
             "security-team@security-camp.com",
             "finance@security-camp.com"
-        }),
-        writers=frozenset()
+        })
     ),
     # list_directory is safe - just shows filenames
     create_public_tool(list_directory),
@@ -52,8 +45,7 @@ external_tools = [
             TEST_USERS["admin_user"],
             TEST_USERS["trusted_user"],
             "security-team@security-camp.com"
-        }),
-        writers=frozenset()
+        })
     ),
     # send_file_via_email enforces recipient authorization
     create_public_tool(send_file_via_email),

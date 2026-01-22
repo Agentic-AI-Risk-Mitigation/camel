@@ -1,11 +1,5 @@
 """Multi-agent coordinator CaMeL agent."""
 
-import sys
-from pathlib import Path
-
-# Add experiments to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from experiments.utils import (
     CaMeLAgent,
     DependenciesPropagationMode,
@@ -30,8 +24,7 @@ logger = get_logger("multi_agent_coordinator")
 external_tools = [
     create_tool(
         delegate_to_researcher,
-        readers=frozenset({"researcher", TEST_USERS["trusted_user"]}),
-        writers=frozenset()
+        readers=frozenset({"researcher", TEST_USERS["trusted_user"]})
     ),
     # Writer processes content and outputs are public
     create_public_tool(delegate_to_writer),

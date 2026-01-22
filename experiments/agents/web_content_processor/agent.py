@@ -1,11 +1,5 @@
 """Web content processor CaMeL agent."""
 
-import sys
-from pathlib import Path
-
-# Add experiments to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from experiments.utils import (
     CaMeLAgent,
     DependenciesPropagationMode,
@@ -34,14 +28,12 @@ external_tools = [
     # Fetched content from internal URLs is restricted
     create_tool(
         fetch_url,
-        readers=frozenset({"web_fetcher", TEST_USERS["trusted_user"]}),
-        writers=frozenset()
+        readers=frozenset({"web_fetcher", TEST_USERS["trusted_user"]})
     ),
     # Extraction maintains source capabilities
     create_tool(
         extract_data,
-        readers=frozenset({"extractor", TEST_USERS["trusted_user"]}),
-        writers=frozenset()
+        readers=frozenset({"extractor", TEST_USERS["trusted_user"]})
     ),
     # Report generation is public but input capabilities are preserved
     create_public_tool(generate_report),

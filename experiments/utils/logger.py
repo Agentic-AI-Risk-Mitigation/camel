@@ -142,6 +142,14 @@ class ExperimentLogger:
         }, level=severity)
 
 
+# Global logger registry to ensure singleton per experiment
+_logger_registry = {}
+
 def get_logger(experiment_name: str) -> ExperimentLogger:
-    """Get or create a logger for an experiment."""
-    return ExperimentLogger(experiment_name)
+    """Get or create a logger for an experiment.
+    
+    Returns singleton instance per experiment name to avoid duplicate handlers.
+    """
+    if experiment_name not in _logger_registry:
+        _logger_registry[experiment_name] = ExperimentLogger(experiment_name)
+    return _logger_registry[experiment_name]

@@ -9,13 +9,8 @@ This approach preserves CaMeL's security guarantees while leveraging
 LangChain's ecosystem.
 """
 
-import sys
-from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
 import os
-
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from experiments.utils import get_logger
 from experiments.config import (

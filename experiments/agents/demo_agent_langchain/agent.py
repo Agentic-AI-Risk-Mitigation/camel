@@ -1,10 +1,6 @@
 """Demo agent with LangChain - prompt injection prevention with moderate complexity."""
 
-import sys
 from pathlib import Path
-
-# Add paths for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from experiments.framework_bridges.langchain.langchain_camel_integration import (
     create_langchain_camel_agent
@@ -41,7 +37,6 @@ external_tools = [
     create_tool(
         extract_structured_data,
         readers=frozenset({"trusted@fake-email-domain.com", "validator"}),
-        dependencies=("text",)  # Output inherits from text input
     ),
     create_tool(
         delegate_to_validator,

@@ -1,12 +1,6 @@
 """Security policy engine for demo agent."""
 
-import sys
-from pathlib import Path
 from typing import Mapping
-
-# Add paths for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "camel"))
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from camel.camel_library import security_policy
 from camel.camel_library.capabilities import utils as capabilities_utils
